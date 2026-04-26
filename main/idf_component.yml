@@ -1,0 +1,3 @@
+dependencies:
+  espressif/mdns: "*"
+  espressif/coap: "^4.3.5~5"
