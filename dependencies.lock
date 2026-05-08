@@ -1,4 +1,14 @@
 dependencies:
+  espressif/cbor:
+    component_hash: dad9ca860963e930366510a10b422b3125a4fb27b979712ed65efcbcd742de50
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.6.1~4
   espressif/coap:
     component_hash: fa573d92bc097700b35b593dfd2530205b90453d41e6f07f834252ab16120628
     dependencies:
@@ -10,7 +20,7 @@ dependencies:
       type: service
     version: 4.3.5~6
   espressif/mdns:
-    component_hash: 1ebe3bd675bb9d1c58f52bc0b609b32f74e572b01c328f9e61282040c775495c
+    component_hash: 8bcf12e37c58c1d584aef32a02b92548124c7a3a9fcf548d3235c844a035e0f0
     dependencies:
     - name: idf
       require: private
@@ -18,14 +28,15 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.11.0
+    version: 1.11.1
   idf:
     source:
       type: idf
     version: 5.5.4
 direct_dependencies:
+- espressif/cbor
 - espressif/coap
 - espressif/mdns
-manifest_hash: 9848f68fefb187eba26d16e2fefda5102d103466d28784c474b4588082e884d6
+manifest_hash: 0e75abb85b1ba6d36a464ce4fdd9676f662e708898c18a4fef7e15cbf7a559df
 target: esp32s3
 version: 2.0.0
