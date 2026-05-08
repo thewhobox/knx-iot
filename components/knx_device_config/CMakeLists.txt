@@ -3,4 +3,4 @@ file(GLOB SOURCES "*.c")
 idf_component_register(
         SRCS ${SOURCES}
         INCLUDE_DIRS "."
-        REQUIRES esp_system)
+        REQUIRES esp_system nvs_flash)

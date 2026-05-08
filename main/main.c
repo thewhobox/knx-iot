@@ -22,12 +22,12 @@ static void start_mdns(void)
     ESP_LOGI(TAG, "Starting mDNS");
 
     ESP_ERROR_CHECK(mdns_init());
-    ESP_ERROR_CHECK(mdns_hostname_set("knx-00fa10020701"));
+    ESP_ERROR_CHECK(mdns_hostname_set("knx-00faf9048288"));
     ESP_ERROR_CHECK(mdns_instance_name_set("KNX Device"));
 
     ESP_ERROR_CHECK(mdns_service_add("KNX Service", "_knx", "_udp", 5353, NULL, 0));
 
-    ESP_LOGI(TAG, "mDNS service announced: _knx._udp @ knx-00fa10020701.local");
+    ESP_LOGI(TAG, "mDNS service announced: _knx._udp @ knx-00faf9048288.local");
 }
 
 
@@ -83,6 +83,7 @@ void app_main(void)
     esp_log_level_set("esp_netif_handlers", ESP_LOG_NONE);
     esp_log_level_set("mdns_mem", ESP_LOG_NONE);
     
+    knx_device_config_init();
 
     // LED
     // https://components.espressif.com/components/espressif/led_strip/versions/3.0.3/readme
@@ -125,5 +126,4 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_connect());
 
-    knx_device_config_init();
 }

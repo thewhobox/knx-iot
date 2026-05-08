@@ -2,6 +2,8 @@
 
 #include "resource_wellknown.h"
 #include "resource_action.h"
+#include "resource_dev.h"
+#include "resource_fp.h"
 
 #include "esp_log.h"
 #include <string.h>
@@ -16,7 +18,7 @@ static uint8_t oscore_config[] =
     //"master_salt,hex,\"00\"\n"
     "sender_id,hex,\"\"\n"
     "id_context,hex,\"0d\"\n"
-    "recipient_id,hex,\"0c00fa10020701\"\n"
+    "recipient_id,hex,\"0c00faf9048288\"\n"
     "replay_window,integer,32\n"
     // "aead_alg,integer,10\n" is default
     // "hkdf_alg,integer,-10\n" is default
@@ -135,9 +137,10 @@ void coap_init()
     free_mem = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     ESP_LOGI(TAG, "Free internal heap memory after allocating OSCORE config: %u bytes", free_mem);
 
-
     resource_wellknown_init(coap_ctx);
 	resource_action_init(coap_ctx);
+	resource_dev_init(coap_ctx);
+	resource_fp_init(coap_ctx);
 
 	// TODO make this work?
     // ESP_LOGI(TAG, "CoAP server initialized, listening on port %d", CONFIG_COAP_LISTEN_PORT);
@@ -150,8 +153,16 @@ void coap_init()
     //     int x = coap_join_mcast_group_intf(coap_ctx, "ff02::fd", buf);
     //     ESP_LOGI(TAG, "Joined multicast group ff02::fd on interface %s (%i)", buf, x);
     // }
+	// 3/10/5 2.6.4.2 CoAP multicast scopes
+	// Link-local: Typically used to query in a single Wi-Fi or Ethernet network segment. 
 	int x = coap_join_mcast_group_intf(coap_ctx, "ff02::fd", "st1");
 	ESP_LOGI(TAG, "Joined multicast group ff02::fd on interface st1 (%i)", x);
+	// Realm-local: Typically used to query in a single mesh topology IPv6 network.
+	x = coap_join_mcast_group_intf(coap_ctx, "ff03::fd", "st1");
+	ESP_LOGI(TAG, "Joined multicast group ff03::fd on interface st1 (%i)", x);
+	// Site-local: Site-local is the default in an installation and spans across networks and stubs (Wi-Fi, Ethernet and Thread network segments). 
+	x = coap_join_mcast_group_intf(coap_ctx, "ff05::fd", "st1");
+	ESP_LOGI(TAG, "Joined multicast group ff05::fd on interface st1 (%i)", x);
 
 	xTaskCreate(coap_task, "coap", 8 * 1024, NULL, 5, NULL);
 }
