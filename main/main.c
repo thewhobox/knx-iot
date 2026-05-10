@@ -11,6 +11,8 @@
 
 #include "coap_handler.h"
 #include "knx_device_config.h"
+#include "tables/group_object_table.h"
+#include "tables/repu_table.h"
 
 static const char *TAG = "KNX-IoT";
 
@@ -84,6 +86,8 @@ void app_main(void)
     esp_log_level_set("mdns_mem", ESP_LOG_NONE);
     
     knx_device_config_init();
+    group_object_table_init();
+    repu_table_init();
 
     // LED
     // https://components.espressif.com/components/espressif/led_strip/versions/3.0.3/readme

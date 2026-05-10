@@ -32,3 +32,6 @@ esp_err_t group_object_table_add_entry(group_object_entry_t *entry);
 esp_err_t group_object_table_remove_entry(uint16_t id);
 esp_err_t group_object_table_load();
 esp_err_t group_object_table_save();
+void group_object_table_clear();
+void group_object_table_print();
+void group_object_table_init();

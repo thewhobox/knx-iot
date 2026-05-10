@@ -1,4 +1,4 @@
-#include "resource_fp.h"
+#include "resource_auth.h"
 
 #include "esp_log.h"
 
@@ -8,7 +8,7 @@
 #include "tables/group_object_table.h"
 #include "tables/repu_table.h"
 
-static const char *TAG = "CoAP Handler<fp>";
+static const char *TAG = "CoAP Handler<auth>";
 
 static void resource_fp_g_post_handler(coap_resource_t *resource, coap_session_t *session, const coap_pdu_t *request, const coap_string_t *query, coap_pdu_t *response)
 {

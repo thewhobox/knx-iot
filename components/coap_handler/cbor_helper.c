@@ -330,7 +330,6 @@ esp_err_t cbor_helper_parse_item(CborValue *it, cbor_helper_head_t **parent)
         (*parent)->next = item;
     }
 
-    ESP_LOGI(TAG, "end parse item");
     return ESP_OK;
 }
 
@@ -389,8 +388,6 @@ cbor_helper_head_t* cbor_helper_parse(const uint8_t *cbor_data, size_t cbor_data
 {
     CborParser parser;
     CborValue it;
-
-    ESP_LOG_BUFFER_HEX("CBOR RAW", cbor_data, cbor_data_len);
 
     CborError err = cbor_parser_init(cbor_data, cbor_data_len, 0, &parser, &it);
     if (err != CborNoError) {

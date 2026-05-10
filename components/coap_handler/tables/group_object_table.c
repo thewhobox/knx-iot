@@ -64,15 +64,29 @@ esp_err_t group_object_table_load()
 {
     uint8_t *buffer = NULL;
     size_t buffer_len = 0;
-    esp_err_t err = knx_storage_get_blob("device", "fp/g", buffer, &buffer_len);
+    esp_err_t err = knx_storage_get_blob("device", "fp/g", NULL, &buffer_len);
     if(err != ESP_OK) {
-        ESP_LOGE(TAG, "group_object_table_load: Failed to load group object table from storage: %d", err);
+        ESP_LOGW(TAG, "group_object_table_load: No group object table found in storage");
+        return ESP_OK;
+    }
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "group_object_table_load: Failed to get blob size from storage: %d", err);
         return err;
     }
     if(buffer_len == 0) {
-        ESP_LOGI(TAG, "group_object_table_load: No group object table found in storage");
-        free(buffer);
+        ESP_LOGW(TAG, "group_object_table_load: No group object table found in storage");
         return ESP_OK;
+    }
+    buffer = malloc(buffer_len);
+    if(buffer == NULL) {
+        ESP_LOGE(TAG, "group_object_table_load: Failed to allocate memory for buffer");
+        return ESP_ERR_NO_MEM;
+    }
+    err = knx_storage_get_blob("device", "fp/g", buffer, &buffer_len);
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "group_object_table_load: Failed to load group object table from storage: %d", err);
+        free(buffer);
+        return err;
     }
     if(buffer[0] != GROUP_OBJECT_TABLE_SAVE_VERSION) {
         ESP_LOGE(TAG, "group_object_table_load: Unsupported group object table version: %u", buffer[0]);
@@ -129,7 +143,7 @@ esp_err_t group_object_table_load()
 esp_err_t group_object_table_save()
 {
     uint8_t *buffer = NULL;
-    size_t buffer_len = 0;
+    size_t buffer_len = 1;
     group_object_entry_t *current = group_object_table_head;
     while (current) {
         // calculate needed buffer size for current entry
@@ -176,4 +190,35 @@ esp_err_t group_object_table_save()
 
     KNX_FREE(buffer);
     return ESP_OK;
+}
+
+void group_object_table_clear()
+{
+    group_object_entry_t *current = group_object_table_head;
+    while (current) {
+        group_object_entry_t *next = current->next;
+        KNX_FREE(current->group_addresses);
+        KNX_FREE(current);
+        current = next;
+    }
+    group_object_table_head = NULL;
+}
+
+void group_object_table_print()
+{
+    group_object_entry_t *current = group_object_table_head;
+    while (current) {
+		ESP_LOGI(TAG, "Parsed entry: id=%u, cflags=%02x, href=%s addrs=%u", current->id, current->cflag.flags, current->href, current->group_addresses_count);
+		ESP_LOG_BUFFER_HEX("Group Addresses", current->group_addresses, sizeof(uint32_t) * current->group_addresses_count);
+        current = current->next;
+    }
+}
+
+void group_object_table_init()
+{
+    if(group_object_table_load() != ESP_OK) {
+        ESP_LOGE(TAG, "group_object_table_init: Failed to load group object table from storage");
+    } else {
+        group_object_table_print();
+    }
 }
