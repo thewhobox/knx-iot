@@ -1,0 +1,12 @@
+file(GLOB SOURCES 
+        "*.c"
+        "tables/*.c"
+        "resources/*.c"
+        "knx/*.c"
+        "coap/*.c")
+
+idf_component_register(
+        SRCS ${SOURCES}
+        INCLUDE_DIRS "."
+        PRIV_INCLUDE_DIRS "tables" "resources" "coap" "knx"
+        REQUIRES coap cbor esp_system nvs_flash)

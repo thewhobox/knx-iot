@@ -4,6 +4,7 @@
 #include "esp_mac.h"
 #include "esp_log.h"
 #include "knx_storage.h"
+#include "knx_device_lsm.h"
 
 static const char *TAG = "KNX_DEVICE_CONFIG";
 
@@ -15,6 +16,7 @@ uint8_t device_hardware_type[12] = "000102030405";
 uint8_t device_hardware_version[3] = {1, 0, 0};
 uint8_t device_firmware_version[3] = {2, 0, 0};
 uint8_t device_model[8] = "IoT Demo";
+uint16_t device_application_version[3] = {250, 0, 0};
 
 void knx_device_config_get_hardware_type(uint8_t **hardware_type, size_t *len)
 {
@@ -73,6 +75,20 @@ uint16_t knx_device_config_get_individual_address()
     return device_individual_address;
 }
 
+uint16_t *knx_device_config_get_application_version()
+{
+    return device_application_version;
+}
+
+void knx_device_config_set_application_version(uint16_t *data)
+{
+    memcpy(device_application_version, data, sizeof(device_application_version));
+    esp_err_t err = knx_storage_set_blob("device", "app_version", (uint8_t *)device_application_version, sizeof(device_application_version));
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to save application version: %s", esp_err_to_name(err));
+    }
+}
+
 uint8_t *knx_device_config_get_serialnumber()
 {
     return device_serial;
@@ -115,6 +131,46 @@ void knx_device_config_init()
         device_installation_id = iia;
     }
 
+    uint8_t *app_version = KNX_MALLOC(sizeof(device_application_version));
+    if(app_version == NULL) {
+        ESP_LOGE(TAG, "Failed to load application version from storage: Out of memory");
+    } else {
+        size_t app_version_len = sizeof(device_application_version);
+        esp_err_t err = knx_storage_get_blob("device", "app_version", app_version, &app_version_len);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to load application version from storage: %s", esp_err_to_name(err));
+        } else if(app_version_len != sizeof(device_application_version)) {
+            ESP_LOGE(TAG, "Failed to load application version from storage: Invalid size");
+        } else {
+            memcpy(device_application_version, app_version, sizeof(device_application_version));
+        }
+    }
+
     ESP_LOGI(TAG, "Loaded Individual Address: %u.%u.%u", (device_individual_address >> 12) & 0xF, (device_individual_address >> 8) & 0xF, device_individual_address & 0xFF);
     ESP_LOGI(TAG, "Loaded Installation ID:    %" PRIx64, device_installation_id);
+    ESP_LOGI(TAG, "Loaded Application Version: %.4X - %.4X - %.4X", device_application_version[0], device_application_version[1], device_application_version[2]);
+    
+    knx_device_lsm_init();
+
+    lsm_state_t lsm_state = knx_device_lsm_get_state();
+    switch(lsm_state)
+    {
+        case UNLOADED:
+            ESP_LOGI(TAG, "LSM State: UNLOADED");
+            break;
+        case LOADED:
+            ESP_LOGI(TAG, "LSM State: LOADED");
+            break;
+        case LOADING:
+            ESP_LOGI(TAG, "LSM State: LOADING");
+            break;
+        case UNLOADING:
+            ESP_LOGI(TAG, "LSM State: UNLOADING");
+            break;
+        case LOADCOMPLETING:
+            ESP_LOGI(TAG, "LSM State: LOADCOMPLETING");
+            break;
+        default:
+            ESP_LOGI(TAG, "LSM State: UNKNOWN");
+    }
 }

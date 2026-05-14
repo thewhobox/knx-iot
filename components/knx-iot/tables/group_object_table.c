@@ -49,6 +49,8 @@ esp_err_t group_object_table_remove_entry(uint16_t id)
             } else {
                 group_object_table_head = current->next;
             }
+            KNX_FREE(current->href);
+            KNX_FREE(current->group_addresses);
             KNX_FREE(current);
             return ESP_OK;
         }
@@ -106,12 +108,19 @@ esp_err_t group_object_table_load()
         entry->id = *(uint16_t *)(buffer + offset);
         offset += 2;
 
-        uint8_t href_len = buffer[offset];
+        entry->href_len = buffer[offset];
         offset += 1;
 
-        memcpy(entry->href, buffer + offset, href_len);
-        entry->href[href_len] = '\0';
-        offset += href_len;
+        entry->href = KNX_MALLOC(entry->href_len + 1);
+        if(entry->href == NULL) {
+            ESP_LOGE(TAG, "group_object_table_load: Failed to allocate memory for href");
+            KNX_FREE(entry);
+            free(buffer);
+            break;
+        }
+        memcpy(entry->href, buffer + offset, entry->href_len);
+        entry->href[entry->href_len] = '\0';
+        offset += entry->href_len;
 
         entry->group_addresses_count = buffer[offset];
         offset += 1;
@@ -119,6 +128,7 @@ esp_err_t group_object_table_load()
         entry->group_addresses = KNX_MALLOC(sizeof(uint32_t) * entry->group_addresses_count);
         if(entry->group_addresses == NULL) {
             ESP_LOGE(TAG, "group_object_table_load: Failed to allocate memory for group addresses");
+            KNX_FREE(entry->href);
             KNX_FREE(entry);
             free(buffer); // buffer is not allocated from KNX_MALLOC, so use free
             break;
@@ -133,7 +143,7 @@ esp_err_t group_object_table_load()
         group_object_table_head = entry;
     }
 
-    if(offset - 1 != buffer_len) {
+    if(offset != buffer_len) {
         ESP_LOGE(TAG, "group_object_table_load: Buffer length mismatch after loading group object table (offset=%u, buffer_len=%u)", offset, (unsigned)buffer_len);
     }
     free(buffer); // buffer is not allocated from KNX_MALLOC, so use free
@@ -148,7 +158,7 @@ esp_err_t group_object_table_save()
     while (current) {
         // calculate needed buffer size for current entry
         buffer_len += 2; // id
-        buffer_len += 1 + strlen(current->href); // href
+        buffer_len += 1 + current->href_len; // href
         buffer_len += 1 + current->group_addresses_count * 4; // group addresses
         buffer_len += 1; // cflags
         current = current->next;
@@ -167,10 +177,10 @@ esp_err_t group_object_table_save()
     while (current) {
         memcpy(buffer + offset, &current->id, 2);
         offset += 2;
-        buffer[offset] = strlen(current->href);
+        buffer[offset] = (uint8_t)current->href_len;
         offset += 1;
-        memcpy(buffer + offset, current->href, strlen(current->href));
-        offset += strlen(current->href);
+        memcpy(buffer + offset, current->href, current->href_len);
+        offset += current->href_len;
         buffer[offset] = current->group_addresses_count;
         offset += 1;
         memcpy(buffer + offset, current->group_addresses, current->group_addresses_count * 4);
@@ -180,7 +190,7 @@ esp_err_t group_object_table_save()
         current = current->next;
     }
 
-    if(offset - 1 != buffer_len) {
+    if(offset != buffer_len) {
         ESP_LOGE(TAG, "group_object_table_save: Calculated buffer length does not match actual data length (offset=%u, buffer_len=%u)", offset, (unsigned)buffer_len);
         KNX_FREE(buffer);
         return ESP_FAIL;
@@ -197,6 +207,7 @@ void group_object_table_clear()
     group_object_entry_t *current = group_object_table_head;
     while (current) {
         group_object_entry_t *next = current->next;
+        KNX_FREE(current->href);
         KNX_FREE(current->group_addresses);
         KNX_FREE(current);
         current = next;

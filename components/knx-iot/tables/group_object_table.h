@@ -5,12 +5,12 @@
 
 #include "esp_err.h"
 
-#define GROUP_OBJECT_HREF_MAX_LEN 255
 #define GROUP_OBJECT_TABLE_SAVE_VERSION 1
 
 typedef struct group_object_entry_t {
     uint16_t id;
-    char href[GROUP_OBJECT_HREF_MAX_LEN];
+    uint8_t *href;
+    size_t href_len;
     uint32_t *group_addresses;
     size_t group_addresses_count;
     union {

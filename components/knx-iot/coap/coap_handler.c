@@ -2,8 +2,10 @@
 
 #include "resource_wellknown.h"
 #include "resource_action.h"
+#include "resource_auth.h"
 #include "resource_dev.h"
 #include "resource_fp.h"
+#include "resource_ap.h"
 
 #include "esp_log.h"
 #include <string.h>
@@ -70,7 +72,25 @@ static void coap_log_handler (coap_log_t level, const char *message)
     }
 }
 
-void coap_init()
+static void coap_unknown_resource_handler(coap_resource_t *resource, coap_session_t *session, const coap_pdu_t *request, const coap_string_t *query, coap_pdu_t *response)
+{
+    coap_string_t *uri = coap_get_uri_path(request);
+
+	ESP_LOGI(TAG, "Received request for unknown resource with URI: %.*s", uri ? (int)uri->length : 0, uri ? uri->s : (const uint8_t *)"(null)");
+
+    if (uri && uri->length >= 2 && strncmp((const char *)uri->s, "p/", 2) == 0) {
+        ESP_LOGI(TAG, "POST request received for unknown resource with prefix /p/");
+        coap_delete_string(uri);
+		coap_pdu_set_code(response, COAP_RESPONSE_CODE_CHANGED);
+        return;
+    }
+
+    coap_delete_string(uri);
+    // Default fallback
+    coap_pdu_set_code(response, COAP_RESPONSE_CODE_NOT_FOUND);
+}
+
+void coap_handler_init()
 {
 	ESP_LOGI(TAG, "Initializing CoAP server");
 	coap_startup();
@@ -82,8 +102,8 @@ void coap_init()
     	vTaskDelete(NULL);
 	}
 
-    coap_set_log_handler(coap_log_handler);
-    coap_set_log_level(COAP_LOG_OSCORE);
+    // coap_set_log_handler(coap_log_handler);
+    // coap_set_log_level(COAP_LOG_OSCORE);
 
 	coap_context_set_block_mode(coap_ctx, COAP_BLOCK_SINGLE_BODY); // COAP_BLOCK_USE_LIBCOAP
 	coap_context_set_max_idle_sessions(coap_ctx, 20);
@@ -141,7 +161,13 @@ void coap_init()
 	resource_action_init(coap_ctx);
 	resource_dev_init(coap_ctx);
 	resource_fp_init(coap_ctx);
+	resource_auth_init(coap_ctx);
+	resource_ap_init(coap_ctx);
 
+	// Use proxy resource for unknown resources to handle get/put/post/etc
+	coap_resource_t *unk = coap_resource_reverse_proxy_init(coap_unknown_resource_handler, COAP_RESOURCE_FLAGS_OSCORE_ONLY);
+	coap_add_resource(coap_ctx, unk);
+	
 	// TODO make this work?
     // ESP_LOGI(TAG, "CoAP server initialized, listening on port %d", CONFIG_COAP_LISTEN_PORT);
     // esp_netif_t *netif = NULL;

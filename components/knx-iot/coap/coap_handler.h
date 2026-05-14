@@ -8,4 +8,4 @@
 #endif /* COAP_SERVER_SUPPORT */
 
 
-void coap_init();
+void coap_handler_init();

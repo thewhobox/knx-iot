@@ -19,3 +19,4 @@ typedef enum class {
 
 lsm_state_t knx_device_lsm_get_state();
 void knx_device_lsm_handle_event(lsm_event_t event);
+void knx_device_lsm_init();

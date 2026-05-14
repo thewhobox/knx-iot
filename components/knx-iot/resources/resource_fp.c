@@ -1,4 +1,4 @@
-#include "resource_auth.h"
+#include "resource_fp.h"
 
 #include "esp_log.h"
 
@@ -8,7 +8,7 @@
 #include "tables/group_object_table.h"
 #include "tables/repu_table.h"
 
-static const char *TAG = "CoAP Handler<auth>";
+static const char *TAG = "CoAP Handler<fp>";
 
 static void resource_fp_g_post_handler(coap_resource_t *resource, coap_session_t *session, const coap_pdu_t *request, const coap_string_t *query, coap_pdu_t *response)
 {
@@ -46,6 +46,7 @@ static void resource_fp_g_post_handler(coap_resource_t *resource, coap_session_t
 		}
 
 		group_object_entry_t *entry = KNX_MALLOC(sizeof(group_object_entry_t));
+		// TODO: Free entry if not added to table (currently memory leak if there is an error in the entry)
 		if(entry == NULL) {
 			ESP_LOGE(TAG, "resource_fp_g_post_handler: Failed to allocate memory for group object entry");
 			continue;
@@ -76,9 +77,9 @@ static void resource_fp_g_post_handler(coap_resource_t *resource, coap_session_t
 			ESP_LOGE(TAG, "resource_fp_g_post_handler: Failed to get cflags value from element at index %u", i);
 		}
 
-		// Get href
-		if(cbor_helper_get_text_string(item, 11, entry->href, GROUP_OBJECT_HREF_MAX_LEN) != ESP_OK) {
+		if(cbor_helper_get_text_string(item, 11, &entry->href, &entry->href_len) != ESP_OK) {
 			ESP_LOGE(TAG, "resource_fp_g_post_handler: Failed to get href value from element at index %u", i);
+			continue;
 		}
 
 		// Get group addresses
@@ -144,6 +145,7 @@ void resource_fp_r_p_handler(bool is_recipient, cbor_helper_head_t *cbor_data)
 		}
 
 		repu_entry_t *entry = KNX_MALLOC(sizeof(repu_entry_t));
+		// TODO: Free entry if not added to table (currently memory leak if there is an error in the entry)
 		if(entry == NULL) {
 			ESP_LOGE(TAG, "resource_fp_r_p_handler: Failed to allocate memory for group object entry");
 			continue;
@@ -288,8 +290,8 @@ static void resource_fp_p_post_handler(coap_resource_t *resource, coap_session_t
 	ESP_LOGI(TAG, "resource_fp_p_post_handler: Got Array of length: %u", (unsigned)cbor_data->property.size);
 
 	cbor_helper_print(cbor_data, 1);
-
 	resource_fp_r_p_handler(false, cbor_data);
+	cbor_helper_free(cbor_data);
 
 	// unsigned char buf[3];
 	// coap_add_option(response, COAP_OPTION_CONTENT_FORMAT, coap_encode_var_safe(buf, sizeof(buf), COAP_MEDIATYPE_APPLICATION_CBOR), buf);

@@ -222,7 +222,15 @@ esp_err_t cbor_helper_parse_item(CborValue *it, cbor_helper_head_t **parent)
             ESP_LOGE(TAG, "Failed to get byte string: %d", err);
             return ESP_FAIL;
         }
-        ESP_LOGW("CBOR", "Byte string parsing not implemented yet");
+        
+        item->property.type = CBOR_TYPE_BYTE_STRING;
+        item->property.value.raw = KNX_MALLOC(len);
+        if (!item->property.value.raw) {
+            ESP_LOGE(TAG, "Memory allocation failed");
+            return ESP_FAIL;
+        }
+        memcpy(item->property.value.raw, buf, len);
+        item->property.size = len;
     }
     else if (cbor_value_is_text_string(it)) {
         char buf[256];
@@ -405,6 +413,11 @@ void cbor_helper_print(cbor_helper_head_t *head, uint8_t indent_level)
 {
     cbor_helper_head_t *current = head;
     while(current) {
+        if(current->property.value.raw == NULL) {
+            ESP_LOGI(TAG, "%*sNULL value with type %u", indent_level * 2, "", (uint16_t)current->property.type);
+            current = current->next;
+            continue;
+        }
         if(current->property.type == CBOR_TYPE_UINT64) {
             ESP_LOGI(TAG, "%*suint64: %" PRIu64, indent_level * 2, "", *(current->property.value.u64));
         }
@@ -509,6 +522,51 @@ cbor_helper_head_t* cbor_helper_get_element_at(cbor_helper_head_t *head, uint16_
     }
 
     ESP_LOGE(TAG, "cbor_helper_get_element_at: Element with index %u not found", index);
+    return NULL;
+}
+
+cbor_helper_head_t* cbor_helper_get_map(cbor_helper_head_t *head, uint16_t key)
+{
+    if(head == NULL) {
+        ESP_LOGE(TAG, "cbor_helper_get_map: CBOR head is NULL");
+        return NULL;
+    }
+    if(head->property.type != CBOR_TYPE_MAP) {
+        ESP_LOGE(TAG, "cbor_helper_get_map: CBOR data is not a map");
+        return NULL;
+    }
+
+    cbor_helper_head_t *current = (cbor_helper_head_t *)head->property.value.raw;
+    while (current) {
+        if (current->property.type == CBOR_TYPE_UINT64 || current->property.type == CBOR_TYPE_INT64)
+        {
+            if(*current->property.value.u64 == key)
+            {
+                cbor_helper_head_t *value_item = current->next;
+                if(value_item == NULL) {
+                    ESP_LOGE(TAG, "cbor_helper_get_map: Property with key %u has no value", key);
+                    return NULL;
+                }
+                
+                if (value_item->property.type == CBOR_TYPE_MAP) {
+                    return value_item;
+                } else {
+                    ESP_LOGW(TAG, "cbor_helper_get_map: Property with key %u is not a map", key);
+                    return NULL;
+                }
+            }
+        } else {
+            ESP_LOGE(TAG, "cbor_helper_get_map: Property key is not an integer. wanted key=%u, type is=%u)", key, current->property.type);
+            return NULL;
+        }
+        if(current->next == NULL) {
+            ESP_LOGE(TAG, "cbor_helper_get_map: Property with key %" PRIi64 " has no value", current->property.value.u64);
+            return NULL;
+        }
+        // skip next item (key + value)
+        current = current->next->next;
+    }
+    ESP_LOGW(TAG, "cbor_helper_get_map: Property with key %u not found", key);
     return NULL;
 }
 
@@ -695,7 +753,7 @@ esp_err_t cbor_helper_get_boolean(cbor_helper_head_t *head, uint16_t key, bool *
     return ESP_FAIL;
 }
 
-esp_err_t cbor_helper_get_text_string(cbor_helper_head_t *head, uint16_t key, char *value, size_t value_len)
+esp_err_t cbor_helper_get_text_string(cbor_helper_head_t *head, uint16_t key, uint8_t **value, size_t *value_len)
 {
     if(head == NULL) {
         ESP_LOGE(TAG, "cbor_helper_get_text_string: CBOR head is NULL");
@@ -719,12 +777,13 @@ esp_err_t cbor_helper_get_text_string(cbor_helper_head_t *head, uint16_t key, ch
                 }
                 
                 if (value_item->property.type == CBOR_TYPE_TEXT_STRING) {
-                    if(value_item->property.size + 1 > value_len) {
-                        ESP_LOGW(TAG, "cbor_helper_get_text_string: Provided buffer is too small for text string with key %u (needed size is %u)", key, (unsigned)(value_item->property.size + 1));
+                    *value = KNX_MALLOC(value_item->property.size);
+                    if(*value == NULL) {
+                        ESP_LOGE(TAG, "cbor_helper_get_text_string: Memory allocation failed");
                         return ESP_FAIL;
                     }
-                    memcpy(value, value_item->property.value.raw, value_item->property.size);
-                    value[value_item->property.size] = '\0';
+                    memcpy(*value, value_item->property.value.raw, value_item->property.size);
+                    *value_len = value_item->property.size;
                     return ESP_OK;
                 } else {
                     ESP_LOGW(TAG, "cbor_helper_get_text_string: Property with key %u is not a text string", key);
@@ -743,6 +802,58 @@ esp_err_t cbor_helper_get_text_string(cbor_helper_head_t *head, uint16_t key, ch
         current = current->next->next;
     }
     ESP_LOGW(TAG, "cbor_helper_get_text_string: Property with key %u not found", key);
+    return ESP_FAIL;
+}
+
+esp_err_t cbor_helper_get_byte_string(cbor_helper_head_t *head, uint16_t key, uint8_t **value, size_t *value_len)
+{
+    if(head == NULL) {
+        ESP_LOGE(TAG, "cbor_helper_get_byte_string: CBOR head is NULL");
+        return ESP_FAIL;
+    }
+    if(head->property.type != CBOR_TYPE_MAP) {
+        ESP_LOGE(TAG, "cbor_helper_get_byte_string: CBOR data is not a map");
+        return ESP_FAIL;
+    }
+
+    cbor_helper_head_t *current = (cbor_helper_head_t *)head->property.value.raw;
+    while (current) {
+        if (current->property.type == CBOR_TYPE_UINT64 || current->property.type == CBOR_TYPE_INT64)
+        {
+            if(*current->property.value.u64 == key)
+            {
+                cbor_helper_head_t *value_item = current->next;
+                if(value_item == NULL) {
+                    ESP_LOGE(TAG, "cbor_helper_get_byte_string: Property with key %u has no value", key);
+                    return ESP_FAIL;
+                }
+                
+                if (value_item->property.type == CBOR_TYPE_BYTE_STRING) {
+                    *value = KNX_MALLOC(value_item->property.size);
+                    if(*value == NULL) {
+                        ESP_LOGE(TAG, "cbor_helper_get_byte_string: Memory allocation failed");
+                        return ESP_FAIL;
+                    }
+                    memcpy(*value, value_item->property.value.raw, value_item->property.size);
+                    *value_len = value_item->property.size;
+                    return ESP_OK;
+                } else {
+                    ESP_LOGW(TAG, "cbor_helper_get_byte_string: Property with key %u is not a byte string", key);
+                    return ESP_FAIL;
+                }
+            }
+        } else {
+            ESP_LOGE(TAG, "cbor_helper_get_byte_string: Property key is not an integer. wanted key=%u, type is=%u)", key, current->property.type);
+            return ESP_FAIL;
+        }
+        if(current->next == NULL) {
+            ESP_LOGE(TAG, "cbor_helper_get_byte_string: Property with key %" PRIi64 " has no value", current->property.value.u64);
+            return ESP_FAIL;
+        }
+        // skip next item (key + value)
+        current = current->next->next;
+    }
+    ESP_LOGW(TAG, "cbor_helper_get_byte_string: Property with key %u not found", key);
     return ESP_FAIL;
 }
 

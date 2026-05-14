@@ -1,8 +1,9 @@
 #include "resource_wellknown.h"
 
-#include "knx_device_config.h"
 #include "coap_handler.h"
 #include "cbor_helper.h"
+#include "knx_device_config.h"
+#include "knx_storage.h"
 
 #include "coap3/coap_session_internal.h"
 
@@ -210,6 +211,36 @@ static void resource_wellknown_knx_post_handler(coap_resource_t *resource, coap_
     // TODO set timer to reboot if !no_valid_code
 }
 
+static void resource_wellknown_knx_f_get_handler(coap_resource_t *resource, coap_session_t *session, const coap_pdu_t *request, const coap_string_t *query, coap_pdu_t *response)
+{
+    ESP_LOGI(TAG, "GET request received for /.well-known/knx/f");
+
+	uint8_t buffer_size = 100;
+	uint8_t *buffer = KNX_MALLOC(buffer_size);
+	if(buffer == NULL) {
+		ESP_LOGE(TAG, "resource_wellknown_knx_f_get_handler: Failed to allocate memory for response buffer");
+		coap_pdu_set_code(response, COAP_RESPONSE_CODE_INTERNAL_ERROR);
+		return;
+	}
+
+    /*
+        Included in fingerprint
+        /{base-path}/fp/g
+        /{base-path}/fp/r
+        /{base-path}/fp/p
+        /{base-path}/p
+    */
+	uint32_t fingerprint = 0x123456;
+	size_t len = cbor_helper_return_uint32(buffer, buffer_size, 1, fingerprint);
+
+	unsigned char buf[3];
+	coap_add_option(response, COAP_OPTION_CONTENT_FORMAT, coap_encode_var_safe(buf, sizeof(buf), COAP_MEDIATYPE_APPLICATION_CBOR), buf);
+	coap_pdu_set_code(response, COAP_RESPONSE_CODE_CONTENT);
+	coap_add_data(response, len, buffer);
+
+	KNX_FREE(buffer);
+}
+
 void resource_wellknown_init(coap_context_t *ctx)
 {
 	coap_resource_t *resource = coap_resource_init(coap_make_str_const(".well-known/core"), 0);
@@ -234,5 +265,13 @@ void resource_wellknown_init(coap_context_t *ctx)
 		return;
 	}
 	coap_register_handler(resource, COAP_REQUEST_POST, resource_wellknown_knx_post_handler);
+	coap_add_resource(ctx, resource);
+
+	resource = coap_resource_init(coap_make_str_const(".well-known/knx/f"), COAP_RESOURCE_FLAGS_OSCORE_ONLY);
+	if (!resource) {
+		ESP_LOGE(TAG, "coap_resource_init() .well-known/knx/f failed");
+		return;
+	}
+	coap_register_handler(resource, COAP_REQUEST_GET, resource_wellknown_knx_f_get_handler);
 	coap_add_resource(ctx, resource);
 }

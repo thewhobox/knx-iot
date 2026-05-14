@@ -13,6 +13,8 @@ uint16_t knx_device_config_get_individual_address();
 void knx_device_config_set_individual_address(uint16_t individual_address);
 uint64_t knx_device_config_get_installation_id();
 void knx_device_config_set_installation_id(uint64_t installation_id);
+uint16_t *knx_device_config_get_application_version();
+void knx_device_config_set_application_version(uint16_t *data);
 uint8_t *knx_device_config_get_serialnumber();
 void knx_device_set_prog_mode(bool progmode);
 bool knx_device_get_prog_mode();

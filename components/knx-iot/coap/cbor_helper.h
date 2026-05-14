@@ -6,6 +6,7 @@
 #include "esp_err.h"
 
 typedef enum {
+    CBOR_TYPE_INVALID = 0,
     CBOR_TYPE_UINT64,
     CBOR_TYPE_INT64,
     CBOR_TYPE_BOOLEAN,
@@ -23,8 +24,10 @@ typedef struct {
 
     union {
         uint8_t  *raw;   // Byte-Array
+        uint16_t *u16;   // Unsigned 16-bit
         uint32_t *u32;   // Unsigned 32-bit
         uint64_t *u64;   // Unsigned 64-bit
+        int16_t  *i16;   // Signed 16-bit
         int32_t  *i32;   // Signed 32-bit
         int64_t  *i64;   // Signed 64-bit
         bool      *boolean; // Boolean
@@ -54,9 +57,11 @@ void cbor_helper_print(cbor_helper_head_t *head, uint8_t indent_level);
 cbor_helper_head_t* cbor_helper_add_uint64(cbor_helper_head_t **head, uint64_t value);
 cbor_helper_head_t* cbor_helper_add_text_string(cbor_helper_head_t **head, const char *value);
 cbor_helper_head_t* cbor_helper_get_element_at(cbor_helper_head_t *head, uint16_t index);
+cbor_helper_head_t* cbor_helper_get_map(cbor_helper_head_t *head, uint16_t key);
 cbor_helper_head_t* cbor_helper_get_array(cbor_helper_head_t *head, uint16_t key);
 esp_err_t cbor_helper_get_uint64(cbor_helper_head_t *head, uint16_t key, uint64_t *value);
 esp_err_t cbor_helper_get_int64(cbor_helper_head_t *head, uint16_t key, int64_t *value);
 esp_err_t cbor_helper_get_boolean(cbor_helper_head_t *head, uint16_t key, bool *value);
-esp_err_t cbor_helper_get_text_string(cbor_helper_head_t *head, uint16_t key, char *value, size_t value_len);
+esp_err_t cbor_helper_get_text_string(cbor_helper_head_t *head, uint16_t key, uint8_t **value, size_t *value_len);
+esp_err_t cbor_helper_get_byte_string(cbor_helper_head_t *head, uint16_t key, uint8_t **value, size_t *value_len);
 void cbor_helper_free(cbor_helper_head_t *head);

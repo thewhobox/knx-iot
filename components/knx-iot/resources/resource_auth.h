@@ -3,4 +3,4 @@
 #include "coap_config.h"
 #include "coap3/coap.h"
 
-void resource_fp_init(coap_context_t *ctx);
+void resource_auth_init(coap_context_t *ctx);

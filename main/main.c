@@ -9,10 +9,7 @@
 #include "driver/gpio.h"
 #include <inttypes.h>
 
-#include "coap_handler.h"
-#include "knx_device_config.h"
-#include "tables/group_object_table.h"
-#include "tables/repu_table.h"
+#include "knx_iot.h"
 
 static const char *TAG = "KNX-IoT";
 
@@ -68,7 +65,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             {
                 already_got_ipv6 = true;
                 start_mdns();
-                coap_init();
+                knx_iot_init();
             }
         }
     }
@@ -85,10 +82,6 @@ void app_main(void)
     esp_log_level_set("esp_netif_handlers", ESP_LOG_NONE);
     esp_log_level_set("mdns_mem", ESP_LOG_NONE);
     
-    knx_device_config_init();
-    group_object_table_init();
-    repu_table_init();
-
     // LED
     // https://components.espressif.com/components/espressif/led_strip/versions/3.0.3/readme
 
@@ -102,11 +95,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    esp_netif_t* sta_netif = esp_netif_create_default_wifi_sta();
-    // esp_netif_create_default_wifi_sta();
-
-    //esp_netif_join_ip6_multicast_group(sta_netif, )
-
+    esp_netif_create_default_wifi_sta();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
